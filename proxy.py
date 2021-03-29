@@ -43,20 +43,6 @@ class RconPacket:
         return bytes(data)
 
 
-# def recv_rcon_packet(conn) -> RconPacket:
-#     packet_size = int.from_bytes(conn.recv(4), byteorder='little', signed=True)
-#     packet_id = int.from_bytes(conn.recv(4), byteorder='little', signed=True)
-#     packet_type = int.from_bytes(conn.recv(4), byteorder='little', signed=True)
-#
-#     body_size = packet_size - STATIC_PACKET_FIELDS_SIZE
-#     if body_size <= 0:
-#         packet_body = ''
-#     else:
-#         packet_body = str(conn.recv(packet_size - STATIC_PACKET_FIELDS_SIZE).split(b'\x00')[0], 'ascii')
-#     _ = conn.recv(2)  # null_terminator and packet_terminator are always 0x00 (2 bytes)
-#     return RconPacket(packet_id, packet_type, packet_body)
-
-
 def recv_rcon_packet(conn) -> RconPacket:
     packet_size = int.from_bytes(conn.recv(4, socket.MSG_WAITALL), byteorder='little', signed=True)
     remaining_packet = conn.recv(packet_size, socket.MSG_WAITALL)
