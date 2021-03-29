@@ -5,6 +5,7 @@ import threading
 import math
 import uuid
 import os
+import sys
 
 
 SERVERDATA_AUTH = 3
@@ -17,6 +18,9 @@ MAX_PACKET_SIZE = 4096
 MAX_BODY_SIZE = MAX_PACKET_SIZE - STATIC_PACKET_FIELDS_SIZE
 
 LOG_COUNTER = 1
+
+INPUT_FILTER_CHAIN = []
+OUTPUT_FILTER_CHAIN = []
 
 
 class RconPacket:
@@ -95,11 +99,52 @@ def generate_rcon_packets(id, type, body) -> [RconPacket]:
     return rcon_packets
 
 
+def load_filter_modules():
+    filter_input_chain = []
+    filter_output_chain = []
+    for f in filter(lambda x: x.endswith('.py'), os.listdir('filters')):
+        module_name = f'filters.{f[:-3]}'
+        __import__(module_name)
+        module = sys.modules[module_name]
+        try:
+            if not module.ENABLED:
+                continue
+        except AttributeError as e:
+            pass  # default = ENABLED
+
+        try:
+            filter_input_chain.append((int(module.ORDER), module_name, module.filter_input))
+        except AttributeError as e:
+            print(f'Ignoring module {module_name} as input filter: {e}')
+
+        try:
+            filter_output_chain.append((int(module.ORDER), module_name, module.filter_output))
+        except AttributeError as e:
+            print(f'Ignoring module {module_name} as input filter: {e}')
+
+    filter_input_chain.sort(key=lambda m: m[0])
+    filter_output_chain.sort(key=lambda m: m[0])
+
+    print('Input filter chain:')
+    for _, f, _ in filter_input_chain:
+        print(f'\t{f}')
+
+    print('Output filter chain:')
+    for _, f, _ in filter_output_chain:
+        print(f'\t{f}')
+
+    return list(map(lambda m: m[1:], filter_input_chain)), list(map(lambda m: m[1:], filter_output_chain))
+
+
 def filter_input(req) -> str:
+    for filter_name, filter_func in INPUT_FILTER_CHAIN:
+        req = filter_func(req)
     return req
 
 
 def filter_output(req, res) -> str:
+    for filter_name, filter_func in OUTPUT_FILTER_CHAIN:
+        res = filter_func(req, res)
     return res
 
 
@@ -152,6 +197,12 @@ class RconClient(threading.Thread):
 
 
 def main():
+    filter_modules = load_filter_modules()
+    global INPUT_FILTER_CHAIN
+    INPUT_FILTER_CHAIN = filter_modules[0]
+    global OUTPUT_FILTER_CHAIN
+    OUTPUT_FILTER_CHAIN = filter_modules[1]
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((cfg['listen_address'], int(cfg['listen_port'])))
         s.listen()

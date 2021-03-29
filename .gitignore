@@ -1,2 +1,4 @@
 .idea
 proxy-config.json
+filters/*
+!filters/template.py
