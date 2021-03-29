@@ -1,0 +1,8 @@
+{
+  "listen_address": "127.0.0.1",
+  "listen_port": "27015",
+  "forward_address": "54.93.229.198",
+  "forward_port": "27015",
+  "log": false,
+  "log_dir": "logs"
+}
