@@ -2,3 +2,5 @@
 proxy-config.json
 filters/*
 !filters/template.py
+logs/*
+!logs/README.md
