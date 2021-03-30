@@ -148,13 +148,15 @@ def filter_output(req, res) -> str:
     return res
 
 
-def log_rcon_command(addr, req, res):
+def log_rcon_command(addr, orig_req, req, orig_res, res):
     global LOG_COUNTER
     os.makedirs(cfg['log_dir'], exist_ok=True)
     with open(f'{cfg["log_dir"]}/log_{LOG_COUNTER}.json', 'w') as log_file:
         obj = {
             'host': f'{addr[0]}:{addr[1]}',
+            'orig_req': orig_req,
             'req': req,
+            'orig_res': orig_res,
             'res': res
         }
         log_file.write(json.dumps(obj))
@@ -184,16 +186,18 @@ class RconClient(threading.Thread):
                     second_res = recv_rcon_packet(forward_conn)
                     send_rcon_packet(self.conn, second_res)
                 else:
+                    orig_req = req.body
                     req.body = filter_input(req.body)
                     send_rcon_packet(forward_conn, req)
                     res_packets = recv_rcon_packets(forward_conn)
 
-                    full_response = filter_output(req.body, extract_body_of_rcon_packets(res_packets))
+                    orig_res = extract_body_of_rcon_packets(res_packets)
+                    full_response = filter_output(req.body, orig_res)
                     for res_packet in generate_rcon_packets(res_packets[0].id, res_packets[0].type, full_response):
                         send_rcon_packet(self.conn, res_packet)
 
                     if cfg['log']:
-                        log_rcon_command(self.addr, req.body, full_response)
+                        log_rcon_command(self.addr, orig_req, req.body, orig_res, full_response)
 
 
 def main():
