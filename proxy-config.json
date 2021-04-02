@@ -1,26 +1,24 @@
 {
-  "rcon_password": "rcon",
   "listen_address": "0.0.0.0",
   "listen_port": "27015",
   "forward_address": "tf2-server",
   "forward_port": "27015",
   "log": false,
   "log_dir": "logs",
-  "log_address": "127.0.0.1",
-  "log_port": "9999",
+  "log_proxy_port": "9999",
   "rcon_filters": [
     {
       "module": "filters.log_proxy",
       "class": "LogProxy"
     },
     {
-      "module": "filters.template",
+      "module": "filters.custom.template",
       "class": "Filter"
     }
   ],
   "log_filters": [
     {
-      "module": "filters.template",
+      "module": "filters.custom.template",
       "class": "Filter"
     }
   ]

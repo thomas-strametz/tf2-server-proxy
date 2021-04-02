@@ -57,20 +57,12 @@ class LogProxy(threading.Thread):
         return req
 
     def get_address(self):
-        return self.cfg['listen_address'], int(self.cfg['log_port'])
-
-    def register_as_log_receiver(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as conn:
-            conn.connect((self.cfg['forward_address'], int(self.cfg['forward_port'])))
-            perform_rcon_authentication(conn, RconPacket(0, SERVERDATA_AUTH, self.cfg['rcon_password']))
-            send_rcon_packet(conn, RconPacket(1, SERVERDATA_EXECCOMMAND, f'logaddress_add {":".join(map(lambda x: str(x), self.get_address()))}'))
+        return self.cfg['listen_address'], int(self.cfg['log_proxy_port'])
 
     def run(self):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.bind(self.get_address())
-            self.register_as_log_receiver()
-            print(self.log_filters)
 
             while True:
                 data, address = sock.recvfrom(4096)

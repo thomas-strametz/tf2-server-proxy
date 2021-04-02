@@ -1,10 +1,7 @@
 .idea
 __pycache__
 proxy-config.json
-filters/*
-!filters/__init__.py
-!filters/template.py
-!filters/exceptions.py
-!filters/log_proxy.py
+filters/custom/*
+!filters/custom/template.py
 logs/*
 !logs/README.md
