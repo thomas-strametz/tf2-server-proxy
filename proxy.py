@@ -14,7 +14,10 @@ FILTER_CHAIN = []
 
 def filter_rcon_command(req) -> str:
     for instance in FILTER_CHAIN:
-        req = instance.filter_rcon_command(req)
+        try:
+            req = instance.filter_rcon_command(req)
+        except AttributeError as e:
+            pass
 
     return req
 
@@ -22,7 +25,7 @@ def filter_rcon_command(req) -> str:
 def filter_rcon_command_response(req, res) -> str:
     for instance in FILTER_CHAIN:
         try:
-            req = instance.filter_rcon_command_response(req, res)
+            res = instance.filter_rcon_command_response(req, res)
         except AttributeError as e:
             pass
 
@@ -59,8 +62,6 @@ class RconClient(threading.Thread):
         with self.conn, forward_conn:
             while True:
                 req = recv_rcon_packet(self.conn)
-
-                req.dump()
 
                 if req.type == SERVERDATA_AUTH:
                     send_rcon_packets(self.conn, perform_rcon_authentication(forward_conn, req))
