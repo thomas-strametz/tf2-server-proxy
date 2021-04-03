@@ -56,6 +56,9 @@ class LogProxy(threading.Thread):
             raise DoNotForwardException(f'logaddress_delall:  all addresses cleared')
         return req
 
+    def get_real_log_target_addresses(self):
+        return list(map(lambda s: (s.split(':')[0], int(s.split(':')[1])), self.real_log_targets))
+
     def get_address(self):
         return self.cfg['listen_address'], int(self.cfg['log_proxy_port'])
 
@@ -71,11 +74,13 @@ class LogProxy(threading.Thread):
                     match = re.match(r'((?:S.*L|RL)\s[0-9]{2}/[0-9]{2}/[0-9]{4}\s-\s[0-9]{2}:[0-9]{2}:[0-9]{2}:\s)(.*)', data.decode('ascii'))
                     if match is not None:
                         new_log = match.group(2)
-                        print(new_log)
                         for instance in self.log_filters:
                             new_log = instance.filter_log(new_log)
-                        print(new_log)
-                        # result = b'\xff' * 4 + match.group(1).encode('ascii') + new_log.encode('ascii') + b'\n\x00'
-                        # print(result)
+
+                        new_data = b'\xff' * 4 + match.group(1).encode('ascii') + new_log.encode('ascii') + b'\n\x00'
+                        for real_log_target in self.get_real_log_target_addresses():
+                            print(real_log_target)
+                            sock.sendto(new_data, real_log_target)
+
         except Exception as e:
             print(f'Log proxy disabled: {e}')
