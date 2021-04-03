@@ -79,7 +79,6 @@ class LogProxy(threading.Thread):
 
                         new_data = b'\xff' * 4 + match.group(1).encode('ascii') + new_log.encode('ascii') + b'\n\x00'
                         for real_log_target in self.get_real_log_target_addresses():
-                            print(real_log_target)
                             sock.sendto(new_data, real_log_target)
 
         except Exception as e:
