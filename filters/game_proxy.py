@@ -68,8 +68,7 @@ class GameProxy(threading.Thread):
                     raise DoNotForwardException(f'game_proxy: clients\n{clients}')
                 elif cmd[2] == 'del':
                     try:
-                        parts = cmd[3].split(':')
-                        address = (parts[0], int(parts[1]))
+                        address = (cmd[3], int(cmd[5]))
                     except (KeyError, IndexError) as e:
                         raise DoNotForwardException(f'game_proxy clients del <ip:port>')
 
@@ -129,6 +128,7 @@ def main():
     cfg = json.loads(''.join(open('../proxy-config.json', 'r').readlines()))
     print(json.dumps(cfg, indent=4, sort_keys=True))
     gp = GameProxy(cfg)
+    gp.filter_rcon_command('game_proxy clients del 129.0.0.1 : 1234')
 
 
 if __name__ == '__main__':
