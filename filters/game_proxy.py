@@ -6,20 +6,23 @@ from filters.exceptions import DoNotForwardException
 from rcon_packet import parse_cmd
 
 MAX_MSG_SIZE = 4096
+SOCKET_TIMEOUT = 10
 
 
 class GameProxyClient(threading.Thread):
 
-    def __init__(self, proxy, real_server):
+    def __init__(self, proxy, real_server, client_address):
         threading.Thread.__init__(self)
         self.proxy = proxy
         self.real_server = real_server
+        self.client_address = client_address
         self.sock = None
 
     def forward_to_real_server(self, data):
         start_thread = False
         if self.sock is None:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.settimeout(SOCKET_TIMEOUT)
             start_thread = True
 
         self.sock.sendto(data, self.real_server)
@@ -28,9 +31,13 @@ class GameProxyClient(threading.Thread):
 
     def run(self) -> None:
         with self.sock as sock:
-            while True:
-                data = sock.recv(MAX_MSG_SIZE)
-                self.proxy.respond_to_client(self, data)
+            try:
+                while True:
+                    data = sock.recv(MAX_MSG_SIZE)
+                    self.proxy.respond_to_client(data, self.client_address)
+            except socket.timeout as e:
+                pass
+        self.proxy.throw_away_client(self)
 
 
 class GameProxy(threading.Thread):
@@ -38,15 +45,17 @@ class GameProxy(threading.Thread):
     def __init__(self, cfg):
         threading.Thread.__init__(self)
         self.cfg = cfg
+        self.client_address_mapping_lock = threading.Lock()
         self.client_address_mapping = {}
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.start()
 
     def filter_rcon_command(self, req) -> str:
         cmd = parse_cmd(req)
-        print(cmd)
-        if cmd[0] == 'game_proxy':
-            if cmd[1] == 'list_clients':
+        if len(cmd) >= 1 and cmd[0] == 'game_proxy':
+            if len(cmd) < 2:
+                raise DoNotForwardException(f'game_proxy: provide a subcommand')
+            elif cmd[1] == 'list_clients':
                 lines = []
                 for address, client in self.client_address_mapping.items():
                     if client.sock is not None:
@@ -58,10 +67,20 @@ class GameProxy(threading.Thread):
                 raise DoNotForwardException(f'game_proxy: unknown subcommand "{cmd[1]}"')
         return req
 
-    def respond_to_client(self, proxy_client, data):
+    def respond_to_client(self, data, client_address):
+        self.sock.sendto(data, client_address)
+
+    def throw_away_client(self, proxy_client):
+        del_address = None
         for address, client in self.client_address_mapping.items():
-            if proxy_client == client:
-                self.sock.sendto(data, address)
+            if client == proxy_client:
+                del_address = address
+                break
+
+        self.client_address_mapping_lock.acquire()
+        if del_address is not None:
+            del self.client_address_mapping[del_address]
+        self.client_address_mapping_lock.release()
 
     def run(self):
         with self.sock as sock:
@@ -75,8 +94,10 @@ class GameProxy(threading.Thread):
                 try:
                     proxy_client = self.client_address_mapping[address]
                 except KeyError as e:
-                    proxy_client = GameProxyClient(self, real_server)
+                    proxy_client = GameProxyClient(self, real_server, address)
+                    self.client_address_mapping_lock.acquire()
                     self.client_address_mapping[address] = proxy_client
+                    self.client_address_mapping_lock.release()
 
                 proxy_client.forward_to_real_server(data)
 
