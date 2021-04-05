@@ -12,6 +12,10 @@
       "class": "LogProxy"
     },
     {
+      "module": "filters.game_proxy",
+      "class": "GameProxy"
+    },
+    {
       "module": "filters.custom.template",
       "class": "Filter"
     }
