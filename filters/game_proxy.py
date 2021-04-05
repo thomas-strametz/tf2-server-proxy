@@ -76,9 +76,10 @@ class GameProxy(threading.Thread):
                     self.client_address_mapping_lock.acquire()
                     try:
                         del self.client_address_mapping[address]
+                        self.client_address_mapping_lock.release()
                     except KeyError as e:
+                        self.client_address_mapping_lock.release()
                         raise DoNotForwardException(f'game_proxy clients del: Unknown client {address}')
-                    self.client_address_mapping_lock.release()
                     raise DoNotForwardException(f'game_proxy clients del {address}')
             else:
                 raise DoNotForwardException(f'game_proxy: unknown subcommand "{cmd[1]}"')
