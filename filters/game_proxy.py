@@ -55,14 +55,31 @@ class GameProxy(threading.Thread):
         if len(cmd) >= 1 and cmd[0] == 'game_proxy':
             if len(cmd) < 2:
                 raise DoNotForwardException(f'game_proxy: provide a subcommand')
-            elif cmd[1] == 'list_clients':
-                lines = []
-                for address, client in self.client_address_mapping.items():
-                    if client.sock is not None:
-                        lines.append(f'{address} <-> {client.sock.getsockname()}')
+            elif cmd[1] == 'clients':
+                if len(cmd) < 3:
+                    raise DoNotForwardException(f'game_proxy clients: provide a subcommand')
+                elif cmd[2] == 'list':
+                    lines = []
+                    for address, client in self.client_address_mapping.items():
+                        if client.sock is not None:
+                            lines.append(f'{address} <-> {client.sock.getsockname()}')
 
-                clients = "\n".join(lines)
-                raise DoNotForwardException(f'game_proxy: clients\n{clients}')
+                    clients = "\n".join(lines)
+                    raise DoNotForwardException(f'game_proxy: clients\n{clients}')
+                elif cmd[2] == 'del':
+                    try:
+                        parts = cmd[3].split(':')
+                        address = (parts[0], int(parts[1]))
+                    except (KeyError, IndexError) as e:
+                        raise DoNotForwardException(f'game_proxy clients del <ip:port>')
+
+                    self.client_address_mapping_lock.acquire()
+                    try:
+                        del self.client_address_mapping[address]
+                    except KeyError as e:
+                        raise DoNotForwardException(f'game_proxy clients del: Unknown client {address}')
+                    self.client_address_mapping_lock.release()
+                    raise DoNotForwardException(f'game_proxy clients del {address}')
             else:
                 raise DoNotForwardException(f'game_proxy: unknown subcommand "{cmd[1]}"')
         return req
@@ -90,6 +107,11 @@ class GameProxy(threading.Thread):
 
             while True:
                 data, address = sock.recvfrom(MAX_MSG_SIZE)
+
+                if data == b'\xff\xff\xff\xffTSource Engine Query\x00':
+                    # Those queries are used to retrieve basic server information
+                    # Valve sends way to many of them
+                    continue
 
                 try:
                     proxy_client = self.client_address_mapping[address]

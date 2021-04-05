@@ -16,4 +16,5 @@ def load_filters(cfg, filter_type):
             instance = clazz(cfg)
             filter_cache[clazz] = instance
             filter_chain.append(instance)
+            print(f'Loaded filter {clazz.__name__} of type {filter_type}.')
     return filter_chain
